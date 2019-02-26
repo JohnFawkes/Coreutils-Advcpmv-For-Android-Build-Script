@@ -26,3 +26,4 @@ Binaries will be in `out-$ARCH` folder
 ## Notes
 
 There will be build errors at the end but it doesn't effect the cp or mv binaries so they can be safely ignored
+You can modify it to build all of coreutils - just remove the --enable-install-program=cp,mv flag from configure and change the for loop at the bottom to read the modules file instead
