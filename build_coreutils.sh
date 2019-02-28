@@ -69,7 +69,7 @@ patch -p0 -i $DIR/coreutils-android-$VER.patch
 
 # Configure
 echogreen "Configuring for $ARCH"
-./configure --host=$target_host --with-gnu-ld --disable-nls --prefix=/system --enable-install-program=cp,mv
+./configure --host=$target_host --disable-nls
 [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
 
 # Build
@@ -77,7 +77,7 @@ echogreen "Building"
 [ "$(grep "#define HAVE_MKFIFO 1" lib/config.h)" ] || echo "#define HAVE_MKFIFO 1" >> lib/config.h
 sed -i 's/^MANS = .*//g' Makefile
 make clean
-make SHARED=0 CFLAGS="-static -static-libgcc -static-libstdc++ -g -O2 -pie -fPIC -fPIE"
+make SHARED=0 CFLAGS="-g -O2 -static -static-libgcc -static-libstdc++"
 
 mkdir -p $DIR/out-$ARCH
 for MODULE in cp mv; do
