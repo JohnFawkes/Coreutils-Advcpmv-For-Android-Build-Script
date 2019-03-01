@@ -72,7 +72,7 @@ echogreen "Configuring for $ARCH"
 sed -i -e '/WANT_MKTIME_INTERNAL=0/i\WANT_MKTIME_INTERNAL=1\n$as_echo "#define NEED_MKTIME_INTERNAL 1" >>confdefs.h' -e '/^ *WANT_MKTIME_INTERNAL=0/,/^ *fi/d' configure
 mkdir -p $DIR/out-$ARCH
 if $FULL; then
-  ./configure --host=$target_host --prefix="$DIR/out-$ARCH" --disable-nls --enable-single-binary=symlinks --enable-no-install-program=stdbuf --without-gmp --with-gnu-ld CFLAGS='-static -O2' LDFLAGS='-static -O2'
+  ./configure --host=$target_host --prefix="$DIR/out-$ARCH" --disable-nls --enable-single-binary=symlinks --without-gmp --with-gnu-ld CFLAGS='-static -O2' LDFLAGS='-static -O2'
   [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
 else
   ./configure --host=$target_host --enable-no-install-program=stdbuf --without-gmp --with-gnu-ld CFLAGS='-static -O2' LDFLAGS='-static -O2'
