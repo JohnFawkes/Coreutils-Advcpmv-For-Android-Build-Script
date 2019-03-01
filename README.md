@@ -1,4 +1,6 @@
-## Advanced Cp/Mv for Android Build Script ##
+## Coreutils with Advanced cp/mv for Android Build Script ##
+
+This will build static coreutils binary with applet symlinks (busybox style) and apply progress bar patches to cp/mv ("advanced cp/mv")
 
 Advanced Copy is a mod for the GNU cp and GNU mv tools which adds a progress
 bar and provides some info on what's going on. It was written by Florian Zwicke
@@ -15,9 +17,10 @@ This website: (https://www.tecmint.com/advanced-copy-command-shows-progress-bar-
 
 ```
 sudo apt install build-essential # For debian/ubuntu based distributions - install dev tools for yours
-./build_coreutils.bash
+./build_coreutils.bash VER=8.30 ARCH=<ARCH> FULL=<true|false>
 ```
 Binaries will be in `out-$ARCH` folder
+If you set FULL to true, a static coreutils binary with symlinks for each applet will be generated. Otherwise, static advanced cp and mv binaries will be generated
 
 ## Usage
 `cp -g file file2`

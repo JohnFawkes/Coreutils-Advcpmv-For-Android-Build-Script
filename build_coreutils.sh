@@ -8,10 +8,9 @@ echogreen () {
 usage () {
   echo " "
   echored "USAGE:"
-  echogreen "To check patches are correct: check"
-  echored "Otherwise, Valid arguments are:"
-  echogreen "ARCH=     (Default: arm) (Valid Arch values: arm, arm64, aarch64, x86, i686, x64, x86_64)"
-  echogreen "VER=......(Default: 8.30)"
+  echogreen "ARCH=          (Default: arm) (Valid Arch values: arm, arm64, aarch64, x86, i686, x64, x86_64)"
+  echogreen "VER=           (Default: 8.30)"
+  echogreen "FULL=true (Default false) Set this to true to compile all of coreutils, otherwise only advanced cp/mv will be setup"
   echo " "
   exit 1
 }
@@ -22,13 +21,13 @@ TEXTRED=$(tput setaf 1)
 DIR=`pwd`
 CHECK=false
 LINARO=false
+FULL=false
 OIFS=$IFS; IFS=\|; 
 while true; do
   case "$1" in
     -h|--help) usage;;
     "") shift; break;;
-    ARCH=*|VER=*) eval $1; shift;;
-    check) CHECK=true; shift;;
+    ARCH=*|VER=*|FULL=*) eval $1; shift;;
     *) echored "Invalid option: $1!"; usage;;
   esac
 done
@@ -69,24 +68,37 @@ patch -p0 -i $DIR/coreutils-android-$VER.patch
 
 # Configure
 echogreen "Configuring for $ARCH"
-./configure --host=$target_host --disable-nls
-[ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
-
+# Fix for mktime_internal build error for arm cross-compile
+sed -i -e '/WANT_MKTIME_INTERNAL=0/i\WANT_MKTIME_INTERNAL=1\n$as_echo "#define NEED_MKTIME_INTERNAL 1" >>confdefs.h' -e '/^ *WANT_MKTIME_INTERNAL=0/,/^ *fi/d' configure
+mkdir -p $DIR/out-$ARCH
+if $FULL; then
+  ./configure --host=$target_host --prefix="$DIR/out-$ARCH" --disable-nls --enable-single-binary=symlinks --enable-no-install-program=stdbuf --without-gmp --with-gnu-ld CFLAGS='-static -O2' LDFLAGS='-static -O2'
+  [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
+else
+  ./configure --host=$target_host --enable-no-install-program=stdbuf --without-gmp --with-gnu-ld CFLAGS='-static -O2' LDFLAGS='-static -O2'
+  [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
+fi
 # Build
 echogreen "Building"
 [ "$(grep "#define HAVE_MKFIFO 1" lib/config.h)" ] || echo "#define HAVE_MKFIFO 1" >> lib/config.h
 sed -i 's/^MANS = .*//g' Makefile
-make clean
-make SHARED=0 CFLAGS="-g -O2 -static -static-libgcc -static-libstdc++"
-
-mkdir -p $DIR/out-$ARCH
-for MODULE in cp mv; do
-    echo "Processing $MODULE"
+make
+[ $? -eq 0 ] || { echored "Build failed!"; exit 1; }
+echogreen "Processing coreutils"
+if $FULL; then
+  make install
+  if $LINARO; then
+    $target_host-strip $DIR/out-$ARCH/bin/coreutils
+  else
+    strip $DIR/out-$ARCH/bin/coreutils
+  fi
+else
+  for MODULE in cp mv; do
     cp src/$MODULE $DIR/out-$ARCH/$MODULE
     if $LINARO; then
       $target_host-strip $DIR/out-$ARCH/$MODULE
     else
       strip $DIR/out-$ARCH/$MODULE
     fi
-done
-        
+  done
+fi
