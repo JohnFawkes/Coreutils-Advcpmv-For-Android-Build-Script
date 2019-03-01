@@ -46,7 +46,8 @@ esac
 
 # Setup
 echogreen "Fetching coreutils $VER"
-rm -rf coreutils-$VER Toolchains out-$ARCH
+rm -rf coreutils-$VER
+$FULL && rm -f coreutils-$ARCH || rm -f cp-$ARCH mv-$ARCH
 [ -f "coreutils-$VER.tar.xz" ] || wget ftp.gnu.org/gnu/coreutils/coreutils-$VER.tar.xz
 tar -xf coreutils-$VER.tar.xz
 if $LINARO; then
@@ -58,7 +59,7 @@ if $LINARO; then
   export PATH=`pwd`/gcc-linaro-7.4.1-2019.02-x86_64_$target_host/bin:$PATH
 fi
 
-# Apply patches - originally by Sonelli and atdt @ github
+# Apply patches - originally by atdt and Sonelli @ github
 echogreen "Applying patches"
 cd $DIR/coreutils-$VER
 patch -p1 -i $DIR/advcpmv-$VER.patch
@@ -68,14 +69,13 @@ patch -p0 -i $DIR/coreutils-android-$VER.patch
 
 # Configure
 echogreen "Configuring for $ARCH"
-# Fix for mktime_internal build error for arm cross-compile
+# Fix for mktime_internal build error for arm/64 cross-compile
 sed -i -e '/WANT_MKTIME_INTERNAL=0/i\WANT_MKTIME_INTERNAL=1\n$as_echo "#define NEED_MKTIME_INTERNAL 1" >>confdefs.h' -e '/^ *WANT_MKTIME_INTERNAL=0/,/^ *fi/d' configure
-mkdir -p $DIR/out-$ARCH
 if $FULL; then
-  ./configure --host=$target_host --prefix="$DIR/out-$ARCH" --disable-nls --enable-single-binary=symlinks --without-gmp --with-gnu-ld CFLAGS='-static -O2' LDFLAGS='-static -O2'
+  ./configure --host=$target_host --disable-nls --enable-single-binary=symlinks --without-selinux --without-gmp --with-gnu-ld CFLAGS='-static -O2' LDFLAGS='-static -O2' #--enable-no-install-program=stdbuf
   [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
 else
-  ./configure --host=$target_host --enable-no-install-program=stdbuf --without-gmp --with-gnu-ld CFLAGS='-static -O2' LDFLAGS='-static -O2'
+  ./configure --host=$target_host --without-gmp --with-gnu-ld CFLAGS='-static -O2' LDFLAGS='-static -O2'
   [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
 fi
 # Build
@@ -86,19 +86,20 @@ make
 [ $? -eq 0 ] || { echored "Build failed!"; exit 1; }
 echogreen "Processing coreutils"
 if $FULL; then
-  make install
+  cp src/coreutils $DIR/coreutils-$ARCH
   if $LINARO; then
-    $target_host-strip $DIR/out-$ARCH/bin/coreutils
+    $target_host-strip $DIR/coreutils-$ARCH
   else
-    strip $DIR/out-$ARCH/bin/coreutils
+    strip $DIR/coreutils-$ARCH
   fi
 else
   for MODULE in cp mv; do
-    cp src/$MODULE $DIR/out-$ARCH/$MODULE
+    cp src/$MODULE $DIR/$MODULE-$ARCH
     if $LINARO; then
-      $target_host-strip $DIR/out-$ARCH/$MODULE
+      $target_host-strip $DIR/$MODULE-$ARCH
     else
-      strip $DIR/out-$ARCH/$MODULE
+      strip $DIR/$MODULE-$ARCH
     fi
   done
 fi
+exit 0
