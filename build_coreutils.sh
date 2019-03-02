@@ -8,9 +8,12 @@ echogreen () {
 usage () {
   echo " "
   echored "USAGE:"
-  echogreen "ARCH=          (Default: arm) (Valid Arch values: arm, arm64, aarch64, x86, i686, x64, x86_64)"
-  echogreen "VER=           (Default: 8.30)"
+  echogreen "ARCH=     (Default: arm) (Valid Arch values: arm, arm64, aarch64, x86, i686, x64, x86_64)"
+  echogreen "VER=      (Default: 8.30)"
   echogreen "FULL=true (Default false) Set this to true to compile all of coreutils, otherwise only advanced cp/mv will be setup"
+  echogreen "SEP=true  (Default false) Set this to true to compile all of coreutils into separate binaries (only applicable if FULL=true)"
+  echo " "
+  echored "Note that sort and timeout both have seccomp issues with android for reasons still under investigation and so have been disabled from single binary (they won't work)"
   echo " "
   exit 1
 }
@@ -22,12 +25,13 @@ DIR=`pwd`
 CHECK=false
 LINARO=false
 FULL=false
+SEP=false
 OIFS=$IFS; IFS=\|; 
 while true; do
   case "$1" in
     -h|--help) usage;;
     "") shift; break;;
-    ARCH=*|VER=*|FULL=*) eval $1; shift;;
+    ARCH=*|VER=*|FULL=*|SEP=*) eval $1; shift;;
     *) echored "Invalid option: $1!"; usage;;
   esac
 done
@@ -47,7 +51,6 @@ esac
 # Setup
 echogreen "Fetching coreutils $VER"
 rm -rf coreutils-$VER
-$FULL && rm -f coreutils-$ARCH || rm -f cp-$ARCH mv-$ARCH
 [ -f "coreutils-$VER.tar.xz" ] || wget ftp.gnu.org/gnu/coreutils/coreutils-$VER.tar.xz
 tar -xf coreutils-$VER.tar.xz
 if $LINARO; then
@@ -72,10 +75,17 @@ echogreen "Configuring for $ARCH"
 # Fix for mktime_internal build error for arm/64 cross-compile
 sed -i -e '/WANT_MKTIME_INTERNAL=0/i\WANT_MKTIME_INTERNAL=1\n$as_echo "#define NEED_MKTIME_INTERNAL 1" >>confdefs.h' -e '/^ *WANT_MKTIME_INTERNAL=0/,/^ *fi/d' configure
 if $FULL; then
-  ./configure --host=$target_host --disable-nls --enable-single-binary=symlinks --without-selinux --without-gmp --with-gnu-ld CFLAGS='-static -O2' LDFLAGS='-static -O2' #--enable-no-install-program=stdbuf
+  if $SEP; then
+    rm -rf $DIR/out-$ARCH
+    ./configure --host=$target_host --disable-nls --without-gmp CFLAGS='-static -O2' LDFLAGS='-static -O2'
+  else
+    rm -f $DIR/coreutils-$ARCH
+    ./configure --host=$target_host --disable-nls --without-gmp --enable-single-binary=symlinks --enable-single-binary-exceptions=sort,timeout CFLAGS='-static -O2' LDFLAGS='-static -O2'
+  fi
   [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
 else
-  ./configure --host=$target_host --without-gmp --with-gnu-ld CFLAGS='-static -O2' LDFLAGS='-static -O2'
+  rm -f $DIR/cp-$ARCH $DIR/mv-$ARCH
+  ./configure --host=$target_host --disable-nls --without-gmp CFLAGS='-static -O2' LDFLAGS='-static -O2'
   [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
 fi
 # Build
@@ -86,11 +96,23 @@ make
 [ $? -eq 0 ] || { echored "Build failed!"; exit 1; }
 echogreen "Processing coreutils"
 if $FULL; then
-  cp src/coreutils $DIR/coreutils-$ARCH
-  if $LINARO; then
-    $target_host-strip $DIR/coreutils-$ARCH
+  if $SEP; then
+    mkdir $DIR/out-$ARCH
+    for i in $(cat $DIR/modules); do
+      cp src/$i $DIR/out-$ARCH/$i
+      if $LINARO; then
+        $target_host-strip $DIR/out-$ARCH/$i
+      else
+        strip $DIR/out-$ARCH/$i
+      fi
+    done
   else
-    strip $DIR/coreutils-$ARCH
+    cp src/coreutils $DIR/coreutils-$ARCH
+    if $LINARO; then
+      $target_host-strip $DIR/coreutils-$ARCH
+    else
+      strip $DIR/coreutils-$ARCH
+    fi
   fi
 else
   for MODULE in cp mv; do
