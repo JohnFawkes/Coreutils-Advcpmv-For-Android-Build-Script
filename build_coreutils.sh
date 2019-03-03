@@ -67,8 +67,8 @@ echogreen "Applying patches"
 cd $DIR/coreutils-$VER
 patch -p1 -i $DIR/advcpmv-$VER.patch
 [ $? -ne 0 ] && { echored "ADVC patching failed! Did you verify line numbers? See README for more info"; exit 1; }
-patch -p0 -i $DIR/coreutils-android-$VER.patch
-[ $? -ne 0 ] && { echored "Android patching failed! Did you verify line numbers? See README for more info"; exit 1; }
+#patch -p0 -i $DIR/coreutils-android-$VER.patch
+#[ $? -ne 0 ] && { echored "Android patching failed! Did you verify line numbers? See README for more info"; exit 1; }
 
 # Configure
 echogreen "Configuring for $ARCH"
