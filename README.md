@@ -16,7 +16,7 @@ This website: (https://www.tecmint.com/advanced-copy-command-shows-progress-bar-
 ## Build instructions
 
 ```
-sudo apt install build-essential # For debian/ubuntu based distributions - install dev tools for yours
+sudo apt install build-essential gcc-multilib # For debian/ubuntu based distributions - install dev tools for yours
 ./build_coreutils.bash VER=8.30 ARCH=<ARCH> FULL=<true|false>
 ```
 Binaries will be in `out-$ARCH` folder

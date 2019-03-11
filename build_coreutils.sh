@@ -44,7 +44,7 @@ case $ARCH in
   arm64|aarch64) target_host=aarch64-linux-gnu; LINARO=true;;
   arm) target_host=arm-linux-gnueabi; LINARO=true;;
   x64|x86_64) target_host=x86_64-linux-gnu;;
-  x86|i686) target_host=i686-linux-gnu;;
+  x86|i686) ;;
   *) echored "Invalid ARCH entered!"; usage;;
 esac
 
@@ -72,20 +72,27 @@ patch -p1 -i $DIR/advcpmv-$VER.patch
 
 # Configure
 echogreen "Configuring for $ARCH"
+if [ -z $target_host ]; then
+  FLAGS='-m32 -march=i686 -static -O2'
+  HOST="TIME_T_32_BIT_OK=yes"
+else
+  FLAGS='-static -O2'
+  HOST="--host=$target_host"
+fi
 # Fix for mktime_internal build error for arm/64 cross-compile
 sed -i -e '/WANT_MKTIME_INTERNAL=0/i\WANT_MKTIME_INTERNAL=1\n$as_echo "#define NEED_MKTIME_INTERNAL 1" >>confdefs.h' -e '/^ *WANT_MKTIME_INTERNAL=0/,/^ *fi/d' configure
 if $FULL; then
   if $SEP; then
     rm -rf $DIR/out-$ARCH
-    ./configure --host=$target_host --disable-nls --without-gmp CFLAGS='-static -O2' LDFLAGS='-static -O2'
+    ./configure --disable-nls --without-gmp $HOST CFLAGS="$FLAGS" LDFLAGS="$FLAGS"
   else
     rm -f $DIR/coreutils-$ARCH
-    ./configure --host=$target_host --disable-nls --without-gmp --enable-single-binary=symlinks --enable-single-binary-exceptions=sort,timeout CFLAGS='-static -O2' LDFLAGS='-static -O2'
+    ./configure --enable-single-binary=symlinks --enable-single-binary-exceptions=sort,timeout --disable-nls --without-gmp $HOST CFLAGS="$FLAGS" LDFLAGS="$FLAGS"
   fi
   [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
 else
   rm -f $DIR/cp-$ARCH $DIR/mv-$ARCH
-  ./configure --host=$target_host --disable-nls --without-gmp CFLAGS='-static -O2' LDFLAGS='-static -O2'
+  ./configure --disable-nls --without-gmp $HOST CFLAGS="$FLAGS" LDFLAGS="$FLAGS"
   [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
 fi
 # Build
